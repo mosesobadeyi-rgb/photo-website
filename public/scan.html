@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Interactive TV Scanner & Background Remover</title>
+  <style>
+    body {
+      background: #121212;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1250px;
+      margin: 0 auto;
+    }
+    .panel {
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .control-group label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+    .control-group input, .control-group select {
+      background: #2d2d2d;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    .canvas-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    canvas {
+      border: 1px solid #333;
+      background-image: linear-gradient(45deg, #1f1f1f 25%, transparent 25%), 
+                        linear-gradient(-45deg, #1f1f1f 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, #1f1f1f 75%), 
+                        linear-gradient(-45deg, transparent 75%, #1f1f1f 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .btn {
+      background: #ff5e00;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #e05300;
+    }
+    .btn-secondary {
+      background: #444;
+    }
+    .btn-secondary:hover {
+      background: #555;
+    }
+    pre {
+      background: #2d2d2d;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      border: 1px solid #3d3d3d;
+      font-size: 14px;
+      color: #58a6ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Interactive TV Screen Scanner & Background Remover</h2>
+    <div class="panel">
+      <div class="controls">
+        <div class="control-group">
+          <label>Select Image Source</label>
+          <select id="imgSelect" onchange="loadImage()">
+            <option value="/images/retro_tv.png">retro_tv.png (Current Zenith TV)</option>
+            <option value="/images/retro_tv_widescreen.png">retro_tv_widescreen.png (Original Upload, 923KB)</option>
+            <option value="/images/candidates/cand_208_1904x964_210467.png">cand_208_1904x964_210467.png (Candidate, 210KB)</option>
+            <option value="/images/test_6.png">test_6.png (511KB)</option>
+            <option value="/images/test_7.png">test_7.png (898KB)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Background Color R</label>
+          <input type="number" id="bgR" value="61">
+        </div>
+        <div class="control-group">
+          <label>Background Color G</label>
+          <input type="number" id="bgG" value="88">
+        </div>
+        <div class="control-group">
+          <label>Background Color B</label>
+          <input type="number" id="bgB" value="119">
+        </div>
+      </div>
+      <div class="controls">
+        <div class="control-group">
+          <label>Bg Tolerance (0-255)</label>
+          <input type="number" id="bgTol" value="45">
+        </div>
+        <div class="control-group">
+          <label>Screen Brightness Threshold (0-255)</label>
+          <input type="number" id="screenThreshold" value="230">
+        </div>
+        <div class="control-group">
+          <label>Top Crop Ratio (Handle)</label>
+          <input type="number" id="topCrop" step="0.01" value="0.0">
+        </div>
+        <div class="control-group" style="justify-content: flex-end; flex-direction: row; gap: 10px;">
+          <button class="btn" onclick="processImage()">Analyze & Clean</button>
+          <button class="btn btn-secondary" onclick="saveImage()">Save Cleaned TV</button>
+        </div>
+      </div>
+      <div id="status" style="font-weight: bold; margin-bottom: 10px; color: #ff5e00;">Ready</div>
+      <div id="stats" style="white-space: pre-wrap; font-family: monospace; line-height: 1.5; color: #8b949e;"></div>
+    </div>
+
+    <div class="panel" id="codePanel" style="display: none;">
+      <h3>Next.js Styling Config</h3>
+      <p>Apply these styles to the Screen Content Wrapper in <code>app/page.tsx</code>:</p>
+      <pre id="codeOutput"></pre>
+    </div>
+
+    <div class="canvas-container">
+      <div>
+        <h3>Original TV Frame</h3>
+        <canvas id="canvasOrig"></canvas>
+      </div>
+      <div>
+        <h3>Processed Transparent TV Frame</h3>
+        <canvas id="canvasProc"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let originalData = null;
+    let width = 0;
+    let height = 0;
+    let img = new Image();
+
+    function loadImage() {
+      const src = document.getElementById('imgSelect').value;
+      document.getElementById('status').innerText = 'Loading ' + src + '...';
+      
+      img = new Image();
+      img.src = src;
+      img.onload = () => {
+        width = img.width;
+        height = img.height;
+        
+        const canvasOrig = document.getElementById('canvasOrig');
+        canvasOrig.width = width;
+        canvasOrig.height = height;
+        const ctxOrig = canvasOrig.getContext('2d');
+        ctxOrig.drawImage(img, 0, 0);
+        
+        originalData = ctxOrig.getImageData(0, 0, width, height);
+
+        // Auto-detect corner color
+        const data = originalData.data;
+        document.getElementById('bgR').value = data[0];
+        document.getElementById('bgG').value = data[1];
+        document.getElementById('bgB').value = data[2];
+
+        document.getElementById('status').innerText = 'Image loaded. Ready to analyze.';
+        processImage();
+      };
+      img.onerror = () => {
+        document.getElementById('status').innerText = 'Error loading ' + src;
+      };
+    }
+
+    // Load initial
+    loadImage();
+
+    function processImage() {
+      if (!originalData) return;
+
+      document.getElementById('status').innerText = 'Analyzing...';
+      const canvasProc = document.getElementById('canvasProc');
+      canvasProc.width = width;
+      canvasProc.height = height;
+      const ctxProc = canvasProc.getContext('2d');
+
+      const imgData = new ImageData(new Uint8ClampedArray(originalData.data), width, height);
+      const data = imgData.data;
+
+      const bgR = parseInt(document.getElementById('bgR').value);
+      const bgG = parseInt(document.getElementById('bgG').value);
+      const bgB = parseInt(document.getElementById('bgB').value);
+      const bgTol = parseInt(document.getElementById('bgTol').value);
+      const screenThreshold = parseInt(document.getElementById('screenThreshold').value);
+      const topCrop = parseFloat(document.getElementById('topCrop').value);
+
+      const isZenithTv = img.src.includes("retro_tv.png");
+
+      let bgPixelsCount = 0;
+      let screenMinX = width;
+      let screenMaxX = 0;
+      let screenMinY = height;
+      let screenMaxY = 0;
+      let screenPixelsCount = 0;
+
+      if (isZenithTv) {
+        // Bypassing flood fill for Zenith TV to prevent transparency leaks in knobs/shadows
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            const pIdx = idx * 4;
+            const r = data[pIdx];
+            const g = data[pIdx + 1];
+            const b = data[pIdx + 2];
+            const maxVal = Math.max(r, g, b);
+
+            // 1. Remove background (outside TV body bounds)
+            // Top Crop (Handle + top background) is 21%.
+            // Left margin is 10.3%, right margin is 93.0%.
+            // Bottom margin is 85.2%.
+            const isBackground = y < height * 0.21 || 
+                                 x < width * 0.103 || 
+                                 x > width * 0.930 || 
+                                 y > height * 0.852;
+            
+            if (isBackground) {
+              data[pIdx + 3] = 0;
+              bgPixelsCount++;
+              continue;
+            }
+
+            // 2. Remove screen cutout
+            const isScreenX = x >= width * 0.1426 && x <= width * (0.1426 + 0.5498);
+            const isScreenY = y >= height * 0.2813 && y <= height * (0.2813 + 0.4502);
+
+            if (isScreenX && isScreenY) {
+              screenPixelsCount++;
+              if (x < screenMinX) screenMinX = x;
+              if (x > screenMaxX) screenMaxX = x;
+              if (y < screenMinY) screenMinY = y;
+              if (y > screenMaxY) screenMaxY = y;
+
+              // Clear dark screen pixels, preserve screen glare/reflections as semi-transparent
+              if (maxVal < 80) {
+                data[pIdx + 3] = 0;
+              } else {
+                const ratio = (maxVal - 80) / (255 - 80);
+                data[pIdx + 3] = Math.round(ratio * 80); // soft reflection overlay
+              }
+            } else {
+              // 3. Keep all other parts of TV frame (bezel, knobs, dials) 100% opaque
+              data[pIdx + 3] = 255;
+            }
+          }
+        }
+      } else {
+        // Fallback to traditional flood-fill background removal for other images
+        const visited = new Uint8Array(width * height);
+        const queue = [];
+
+        // 1. Flood fill from corners to mark outer background
+        const corners = [
+          [0, 0],
+          [width - 1, 0],
+          [0, height - 1],
+          [width - 1, height - 1]
+        ];
+
+        for (const [cx, cy] of corners) {
+          const idx = cy * width + cx;
+          if (!visited[idx]) {
+            queue.push([cx, cy]);
+            visited[idx] = 1;
+          }
+        }
+
+        while (queue.length > 0) {
+          const [x, y] = queue.shift();
+          const pIdx = (y * width + x) * 4;
+          
+          // Remove background (alpha = 0)
+          data[pIdx + 3] = 0;
+          bgPixelsCount++;
+
+          // Check 4 neighbors
+          const neighbors = [
+            [x + 1, y],
+            [x - 1, y],
+            [x, y + 1],
+            [x, y - 1]
+          ];
+
+          for (const [nx, ny] of neighbors) {
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+              const nIdx = ny * width + nx;
+              if (!visited[nIdx]) {
+                const npIdx = nIdx * 4;
+                const nr = data[npIdx];
+                const ng = data[npIdx + 1];
+                const nb = data[npIdx + 2];
+                
+                if (isBgColor(nr, ng, nb)) {
+                  visited[nIdx] = 1;
+                  queue.push([nx, ny]);
+                }
+              }
+            }
+          }
+        }
+
+        // Crop top handle if requested
+        if (topCrop > 0) {
+          const cropHeight = Math.floor(height * topCrop);
+          for (let y = 0; y < cropHeight; y++) {
+            for (let x = 0; x < width; x++) {
+              const pIdx = (y * width + x) * 4;
+              data[pIdx + 3] = 0;
+            }
+          }
+        }
+
+        // 2. Identify the Screen Cutout
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (visited[idx]) continue; // skip background
+
+            const pIdx = idx * 4;
+            const r = data[pIdx];
+            const g = data[pIdx + 1];
+            const b = data[pIdx + 2];
+
+            // Check if it's white screen cutout
+            if (r >= screenThreshold && g >= screenThreshold && b >= screenThreshold) {
+              screenPixelsCount++;
+              if (x < screenMinX) screenMinX = x;
+              if (x > screenMaxX) screenMaxX = x;
+              if (y < screenMinY) screenMinY = y;
+              if (y > screenMaxY) screenMaxY = y;
+
+              // Make screen transparent in the TV frame image so content shows through
+              data[pIdx + 3] = 0;
+            }
+          }
+        }
+      }
+
+      ctxProc.putImageData(imgData, 0, 0);
+
+      // Calculations
+      const screenWidth = screenMaxX - screenMinX;
+      const screenHeight = screenMaxY - screenMinY;
+      const pctLeft = (screenMinX / width * 100).toFixed(4);
+      const pctTop = (screenMinY / height * 100).toFixed(4);
+      const pctWidth = (screenWidth / width * 100).toFixed(4);
+      const pctHeight = (screenHeight / height * 100).toFixed(4);
+      const aspect = (screenWidth / screenHeight).toFixed(4);
+
+      let statsText = `Canvas Size: ${width}x${height}px (Aspect: ${(width/height).toFixed(4)})\n`;
+      statsText += `Removed Background Pixels: ${bgPixelsCount}\n`;
+      statsText += `Screen Cutout Pixels: ${screenPixelsCount}\n`;
+      statsText += `Screen Bounding Box: X(${screenMinX} to ${screenMaxX}), Y(${screenMinY} to ${screenMaxY})\n`;
+      statsText += `Screen Size: ${screenWidth}x${screenHeight}px (Aspect Ratio: ${aspect})\n`;
+      statsText += `Screen Left: ${pctLeft}%\n`;
+      statsText += `Screen Top: ${pctTop}%\n`;
+      statsText += `Screen Width: ${pctWidth}%\n`;
+      statsText += `Screen Height: ${pctHeight}%\n`;
+
+      document.getElementById('stats').innerText = statsText;
+      document.getElementById('status').innerText = 'Analysis Complete!';
+
+      if (screenPixelsCount > 0) {
+        document.getElementById('codePanel').style.display = 'block';
+        document.getElementById('codeOutput').innerText = `/* Apply these exact percentages to the Screen Content Wrapper in app/page.tsx */
+left: "${pctLeft}%",
+top: "${pctTop}%",
+width: "${pctWidth}%",
+height: "${pctHeight}%",
+borderRadius: "6% / 9%" // Adjusted for widescreen bezel curvature`;
+      } else {
+        document.getElementById('codePanel').style.display = 'none';
+      }
+    }
+
+    async function saveImage() {
+      const canvasProc = document.getElementById('canvasProc');
+      const dataURL = canvasProc.toDataURL('image/png');
+      
+      document.getElementById('status').innerText = 'Saving cleaned image...';
+      try {
+        const response = await fetch('/api/save-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ image: dataURL }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          document.getElementById('status').innerText = 'Cleaned image saved successfully to public/images/retro_tv_clean.png!';
+        } else {
+          document.getElementById('status').innerText = 'Error: ' + result.error;
+        }
+      } catch (err) {
+        document.getElementById('status').innerText = 'Error saving image: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

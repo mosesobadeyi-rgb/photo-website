@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Early Candidates Gallery</title>
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: #222;
+      border: 1px solid #333;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #444;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Early Candidates Gallery</h2>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const count = 15;
+    const grid = document.getElementById('grid');
+    for (let i = 1; i <= count; i++) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>early_${i}.png</h3>
+        <img src="/images/early_${i}.png" alt="early_${i}">
+      `;
+      grid.appendChild(card);
+    }
+  </script>
+</body>
+</html>

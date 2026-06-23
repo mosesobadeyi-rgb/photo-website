@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>1904x964 Candidates Gallery</title>
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: #222;
+      border: 1px solid #333;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #444;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>1904x964 Candidates Gallery</h2>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const candidates = [
+      "cand_183_1904x964_604198.png",
+      "cand_184_1904x964_905858.png",
+      "cand_185_1904x964_895705.png",
+      "cand_186_1904x964_608048.png",
+      "cand_187_1904x964_598380.png",
+      "cand_188_1904x964_620438.png",
+      "cand_189_1904x964_611552.png",
+      "cand_190_1904x964_665484.png",
+      "cand_191_1904x964_611552.png",
+      "cand_192_1904x964_549372.png",
+      "cand_193_1904x964_549372.png",
+      "cand_194_1904x964_813276.png",
+      "cand_195_1904x964_813276.png",
+      "cand_196_1904x964_824375.png",
+      "cand_197_1904x964_824375.png",
+      "cand_198_1904x964_521909.png",
+      "cand_199_1904x964_521909.png",
+      "cand_200_1904x964_566167.png",
+      "cand_201_1904x964_809823.png",
+      "cand_202_1904x964_712434.png",
+      "cand_203_1904x964_684158.png",
+      "cand_204_1904x964_684158.png",
+      "cand_205_1904x964_348968.png",
+      "cand_206_1904x964_348968.png",
+      "cand_207_1904x964_776272.png",
+      "cand_208_1904x964_210467.png",
+      "cand_209_1904x964_210467.png",
+      "cand_210_1904x964_776272.png",
+      "cand_211_1904x964_740249.png",
+      "cand_212_1904x964_744804.png",
+      "cand_213_1904x964_767085.png",
+      "cand_214_1904x964_767085.png",
+      "cand_215_1904x964_735366.png",
+      "cand_216_1904x964_511500.png",
+      "cand_218_1904x964_511500.png",
+      "cand_220_1904x964_511500.png"
+    ];
+
+    const grid = document.getElementById('grid');
+    candidates.forEach(name => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>${name}</h3>
+        <img src="/images/candidates/${name}" alt="${name}">
+      `;
+      grid.appendChild(card);
+    });
+  </script>
+</body>
+</html>
